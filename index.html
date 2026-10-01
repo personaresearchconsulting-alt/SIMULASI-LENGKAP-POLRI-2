@@ -648,7 +648,7 @@
             {t: "Menggunakan format laporan standar kedinasan yang sudah ada dan memfokuskan pengerjaan pada keakuratan data substansi.", s: 4},
             {t: "Mengumpulkan data pendukung secara sistematis, membagi pengetikan nota dengan anggota tim, dan menguji ulang keabsahan angka.", s: 5},
             {t: "Mengalokasikan waktu penuh tanpa jeda distrasi hingga lembar laporan selesai dan siap diajukan ke meja pemeriksaan pimpinan.", s: 3},
-            {t: "Meminta bantuan reviu awal dari perwira administrasi terdekat untuk memastikan tidak ada kekeliruan format sebelum dicetak.", s: 2},
+            {t: "Minta bantuan reviu awal dari perwira administrasi terdekat untuk memastikan tidak ada kekeliruan format sebelum dicetak.", s: 2},
             {t: "Berkomitmen menyajikan laporan yang jujur, akuntabel, dan transparan sesuai fakta penggunaan anggaran kegiatan.", s: 1}
         ]},
         { q: "Saat sedang mengendarai dinas, Anda melihat ada kemacetan parah akibat lampu lalu lintas mati di persimpangan jalan. Sikap Anda...", opts: [
@@ -733,7 +733,7 @@
         ["🏦", "🎋", "🐳", "🚂", "✂️"],
         ["🕌", "🍁", "🐢", "🚌", "🧯"],
         ["🛕", "🌾", "🦭", "🚜", "📦"],
-        ["🏭", "🍄", "🪼", "🚲", "🖊️"],
+        ["🏭", "🍄", "🪼", "🚲", "🖊️️"],
         ["⛺", "🍀", "🐡", "🛵", "🔔"]
     ];
 
@@ -745,6 +745,9 @@
     // State Variabel Kecermatan
     let c_currentIdx = 0;
     let c_activeChars = [];
+
+    // Flag untuk memastikan pengiriman hasil hanya 1 kali
+    let isResultSubmitted = false;
 
     // Auto-Shuffle Protocol for Anti-Copy Protection
     function shuffleArray(array) {
@@ -1080,6 +1083,48 @@
             },
             options: { maintainAspectRatio: false }
         });
+
+        // INTEGRASI PENGIRIMAN HASIL KE GOOGLE APPS SCRIPT PRC
+        sendResultToAppsScript(finalScore);
+    }
+
+    /* FUNGSI PENGIRIMAN HASIL KE APPS SCRIPT PRC */
+    function sendResultToAppsScript(finalScore) {
+        if (isResultSubmitted) return;
+        isResultSubmitted = true;
+
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbxzzajqlZMq2qOSgxoLAvdpTeMgAOSDCJmkqZvIy0uMxfgPfCxlXNNKotDquzHmkqUa/exec";
+        
+        const now = new Date();
+        const tanggalFormatted = now.toISOString().split('T')[0];
+
+        const payload = {
+            nama: pName,
+            kode_siswa: "PRC-" + Math.floor(1000 + Math.random() * 9000),
+            pin: "1234",
+            jenis_aktivitas: "Simulasi CAT Polri",
+            kelompok: "Utama",
+            subtes: "Lengkap (Kecerdasan, TKP, Kecermatan)",
+            materi: "Paket Terbaru",
+            nama_tes: "Tryout Lengkap Simulasi CAT Polri Update",
+            tanggal: tanggalFormatted,
+            nilai: finalScore.toFixed(2),
+            total: simulationResult.kecerdasan.skor + simulationResult.kepribadian.skor + simulationResult.kecermatan.skor,
+            keterangan: "Selesai"
+        };
+
+        fetch(urlAppsScript, {
+            method: "POST",
+            mode: "no-cors",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        }).then(() => {
+            console.log("Hasil berhasil dikirim ke Apps Script PRC.");
+        }).catch((error) => {
+            console.error("Gagal mengirim hasil, namun tes tetap selesai:", error);
+        });
     }
 
     /* PEMBAHASAN / REVIEW GENERATOR */
@@ -1146,26 +1191,13 @@
         const canvas = await html2canvas(element, { scale: 1.5 });
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const imgWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        const imgData = canvas.toDataURL('image/png');
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-
-        while (heightLeft > 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-        }
-
+        const w = pdf.internal.pageSize.getWidth();
+        const h = (canvas.height * w) / canvas.width;
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, w, h);
         pdf.save(`Pembahasan_Simulasi_CAT_Polri_${pName}.pdf`);
-        btn.style.display = 'inline-block';
+        btn.style.display = 'block';
     }
 </script>
+
 </body>
 </html>
